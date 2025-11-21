@@ -1,9 +1,14 @@
-# Python
-venv/
+# Секретные данные
 .env
+
+# Виртуальное окружение  
+venv/
+.venv/
+
+# Системные файлы Python
 __pycache__/
 *.pyc
 
-# IDE
+# Файлы IDE
 .vscode/
 .idea/

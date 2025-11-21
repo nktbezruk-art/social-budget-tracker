@@ -10,7 +10,7 @@ class Config():
     FLASK_ENV = os.environ.get("FLASK_ENV")
     
 class DevelopmentConfig(Config):
-    pass
+    TEMPLATES_AUTO_RELOAD = True
     
     
 class ProductionConfig(Config):
