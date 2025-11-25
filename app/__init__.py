@@ -1,6 +1,11 @@
 import os
 from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from config import ProductionConfig, DevelopmentConfig, TestConfig
+
+db = SQLAlchemy()
+migrate = Migrate()
 
 def create_app():
     app = Flask(__name__)
@@ -17,6 +22,10 @@ def create_app():
     if not os.environ.get("SECRET_KEY", ""):
         raise ValueError("SECRET_KEY must be set in .env file")
     
+    db.init_app(app)
+    migrate.init_app(app, db)
+    
+    from app import models
     
     from app.auth import auth_bp
     from app.reports import reports_bp
@@ -27,9 +36,5 @@ def create_app():
     app.register_blueprint(reports_bp)
     app.register_blueprint(social_bp)
     app.register_blueprint(transactions_bp)
-    
-    @app.route("/test")
-    def test():
-        return "FLASK WORKS!"
 
     return app
