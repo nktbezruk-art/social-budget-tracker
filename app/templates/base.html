@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% if title %}
+    <title>{{ title }}</title>
+    {% else %}
+    <title>Budget Tracker</title>
+    {% endif %}
+</head>
+<body>
+    <header>
+        <nav>
+            <ul class="navigation_links">
+                {# <li class="navigation_link"><a href="{{ url_for('social.posts') }}">Лента</a></li> #}
+                {% if not current_user.is_authenticated %}
+                <li class="navigation_link"><a href="{{ url_for('auth.registration') }}">Зарегистрироваться</a></li>
+                <li class="navigation_link"><a href="{{ url_for('auth.login') }}">Войти</a></li>
+                {% else %}
+                {# <li class="navigation_link"><a href="{{ url_for('transactions.transaction_main') }}">Транзакции</a></li> #}
+                {# <li class="navigation_link"><a href="{{ url_for('transactions.add_transaction') }}">Добавить транзакцию</a></li> #}
+                <li class="navigation_link"><a href="{{ url_for('auth.logout') }}">Выйти</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Social Budget Tracker</p>
+    </footer>
+</body>
+</html>

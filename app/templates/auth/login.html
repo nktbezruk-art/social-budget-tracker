@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Вход</h1>
+<form method="post">
+    {{ form.hidden_tag() }}
+
+    {{ form.valid_data.label }}<br>
+    {{ form.valid_data(placeholder="Введите имя или почту") }}
+    {% for error in form.valid_data.errors %}
+    <span class="error">[{{ error }}]</span>
+    {% endfor %}
+
+    <br>
+
+    {{ form.password.label }}<br>
+    {{ form.password(placeholder="Введите пароль") }}
+    {% for error in form.password.errors %}
+    <span class="error">[{{ error }}]</span>
+    {% endfor %}
+
+    <br>
+
+    {{ form.submit() }}
+</form>
+{% endblock %}

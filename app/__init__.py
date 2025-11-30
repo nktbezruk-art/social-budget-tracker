@@ -1,7 +1,7 @@
 import os
 from flask import Flask
 from config import ProductionConfig, DevelopmentConfig, TestConfig
-from app.db import db, migrate, login_manager
+from app.db import db, migrate, login_manager, csrf
 
 def create_app():
     app = Flask(__name__)
@@ -18,6 +18,7 @@ def create_app():
     if not os.environ.get("SECRET_KEY", ""):
         raise ValueError("SECRET_KEY must be set in .env file")
     
+    csrf.init_app(app)
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)

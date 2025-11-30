@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Регистрация</h1>
+<form method="post">
+    {{ form.hidden_tag() }}
+
+    {{ form.username.label }}<br>
+    {{ form.username(placeholder="Введите имя") }}
+    {% for error in form.username.errors %}
+    <span class="error">[{{ error }}]</span>
+    {% endfor %}
+
+    <br>
+
+    {{ form.email.label }}<br>
+    {{ form.email(placeholder="Введите почту") }}
+    {% for error in form.email.errors %}
+    <span class="error">[{{ error }}]</span>
+    {% endfor %}
+
+    <br>
+
+    {{ form.password.label }}<br>
+    {{ form.password(placeholder="Введите пароль") }}
+    {% for error in form.password.errors %}
+    <span class="error">[{{ error }}]</span>
+    {% endfor %}
+
+    <br>
+
+    {{ form.confirm_password.label }}<br>
+    {{ form.confirm_password(placeholder="Подтвердите пароль") }}
+    {% for error in form.confirm_password.errors %}
+    <span class="error">[{{ error }}]</span>
+    {% endfor %}
+
+    <br>
+
+    {{ form.submit() }}
+</form>
+{% endblock %}
