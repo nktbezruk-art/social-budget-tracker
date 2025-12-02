@@ -1,22 +1,38 @@
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
 
-class Config():
+class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY")
-    DATABASE_URL = os.environ.get("DATABASE_URL")
-    DEBUG = os.environ.get("DEBUG") == "True"
-    FLASK_ENV = os.environ.get("FLASK_ENV")
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///database.db")
+    if not SECRET_KEY:
+        raise ValueError("SECRET_KEY must be set in .env file")
+    
+    DEBUG = os.environ.get("DEBUG", "False") == "True"
+    FLASK_ENV = os.environ.get("FLASK_ENV", "development")
+    
+    BASE_DIR = Path(__file__).parent.parent
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        "DATABASE_URL", 
+        f"sqlite:///{BASE_DIR}/instance/database.db"
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
+    REMEMBER_COOKIE_DURATION = 3600
+    REMEMBER_COOKIE_HTTPONLY = True
+    SESSION_PROTECTION = "strong"
+
 class DevelopmentConfig(Config):
     TEMPLATES_AUTO_RELOAD = True
-    
-    
+    SQLALCHEMY_ECHO = True
+
 class ProductionConfig(Config):
-    pass
+    DEBUG = False
+    SESSION_COOKIE_SECURE = True
+    REMEMBER_COOKIE_SECURE = True
 
 class TestConfig(Config):
     TESTING = True
+    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    WTF_CSRF_ENABLED = False

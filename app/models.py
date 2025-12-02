@@ -20,7 +20,7 @@ class User(UserMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(120), unique=True, nullable=False)
     email: so.Mapped[str] = so.mapped_column(sa.String(120), unique=True, nullable=False)
-    password_hash: so.Mapped[str] = so.mapped_column(sa.String(120), unique=True, nullable=False)
+    password_hash: so.Mapped[str] = so.mapped_column(sa.String(120), nullable=False)
     created_at: so.Mapped[datetime] = so.mapped_column(sa.DateTime, default=datetime.utcnow)
     
     transactions: so.Mapped[List["Transaction"]] = so.relationship(back_populates="user")
