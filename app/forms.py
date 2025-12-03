@@ -1,7 +1,8 @@
 from datetime import datetime
+import calendar
 from flask_wtf import FlaskForm
-from wtforms import StringField, EmailField, PasswordField, SubmitField, DecimalField, SelectField, DateField
-from wtforms.validators import DataRequired, Email, EqualTo
+from wtforms import StringField, EmailField, PasswordField, SubmitField, DecimalField, SelectField, DateField, RadioField
+from wtforms.validators import DataRequired, Email, EqualTo, Optional
 
 class LoginForm(FlaskForm):
     valid_data = StringField("Имя или почта", validators=[
@@ -52,3 +53,39 @@ class TransactionForm(FlaskForm):
 class DeleteConfirmForm(FlaskForm):
     submit_delete = SubmitField('Удалить')
     submit_cancel = SubmitField('Отмена')
+    
+
+class FilterForm(FlaskForm):
+    specific_date = DateField("Дата", format="%d-%m-%Y", validators=[Optional()])
+    month = SelectField("Месяц", choices=[], validators=[Optional()])
+    category_id = SelectField("Категория",
+                              coerce=lambda x: int(x) if x else None, 
+                              validators=[Optional()])
+    
+    transaction_type = RadioField(
+        "Тип", 
+        choices=[
+            ('all', 'Все'),
+            ('income', 'Доходы'),
+            ('expense', 'Расходы')
+        ],
+        default='all'
+    )
+    apply_filter = SubmitField("Применить")
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from app.models import Category
+        categories = Category.query.all()
+        self.category_id.choices = [(None, "Все")] + [(c.id, c.name) for c in categories]  # type: ignore
+        
+        current_year = datetime.now().year
+        month_choices = []
+
+        for month_num in range(1, 13):
+            month_name = calendar.month_name[month_num]
+            display_text = f"{month_name} {current_year}"
+            month_choices.append((month_num, display_text))
+        self.month.choices = month_choices
+        
+    

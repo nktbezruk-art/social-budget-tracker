@@ -29,7 +29,9 @@ def create_app():
     from app.reports import reports_bp
     from app.social import social_bp
     from app.transactions import transactions_bp
+    from app.main import main_bp
     
+    app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(social_bp)

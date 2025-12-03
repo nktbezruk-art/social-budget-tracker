@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Требуется подтверждение</h1>
+<p>Вы уверены что хотите удалить транзакцию?</p>
+
+<form method="post">
+    {{ form.hidden_tag() }}
+
+    {{ form.submit_cancel }}
+    <br>
+    {{ form.submit_delete }}
+
+</form>
+{% endblock %}

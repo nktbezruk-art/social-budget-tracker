@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Баланс: {{ balance }}</h1>
+<h3>Доходы: {{ total_income }}</h3>
+<h3>Расходы: {{ total_expense }}</h3>
+
+<form method="get" action="">
+    {{ form.hidden_tag() }}
+    
+    {{ form.transaction_type.label }}: {{ form.transaction_type }}
+    <br>
+    {{ form.apply_filter() }}
+    <a href="{{ url_for('transactions.transaction_main') }}">Сбросить</a>
+</form>
+
+{% if transactions %}
+<a href="{{ url_for('transactions.add_transaction') }}">Создать транзакцию</a>
+{% for transaction in transactions %}
+<p>{{ transaction.category.name }}</p>
+<p>{{ transaction.amount }}</p>
+<p>{{ transaction.description }}</p>
+<small>{{ transaction.type }}</small>
+<br>
+<a href="{{ url_for('transactions.edit_transaction', transaction_id=transaction.id) }}">Изменить</a>
+<a href="{{ url_for('transactions.delete_transaction', transaction_id=transaction.id) }}">Удалить</a>
+<hr>
+{% endfor %}
+{% else %}
+<h1>Нет ни одной транзакции!</h1>
+<a href="{{ url_for('transactions.add_transaction') }}">Создать</a>
+{% endif %}
+{% endblock %}

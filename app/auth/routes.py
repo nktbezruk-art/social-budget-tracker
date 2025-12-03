@@ -60,8 +60,8 @@ def registration():
         return render_template("auth/register.html", form=form, title="Registration")
 
 
-@login_required
 @auth_bp.route("/logout")
+@login_required
 def logout():
     logout_user()
     flash("Вы успешно вышли из аккаунта!", "success")
