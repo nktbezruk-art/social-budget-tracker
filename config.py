@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+from datetime import timedelta
 
 load_dotenv()
 
@@ -19,7 +20,7 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    REMEMBER_COOKIE_DURATION = 3600
+    REMEMBER_COOKIE_DURATION = timedelta(days=30)
     REMEMBER_COOKIE_HTTPONLY = True
     SESSION_PROTECTION = "strong"
 

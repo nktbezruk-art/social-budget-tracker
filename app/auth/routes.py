@@ -18,7 +18,7 @@ def login():
             return render_template("auth/login.html", form=form, title="Login")
         
         try:
-            login_user(user)
+            login_user(user, remember=form.remember.data)
             return redirect(url_for("transactions.transaction_main"))
         except Exception as e:
             flash("Что-то пошло не так!", "error")

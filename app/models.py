@@ -42,7 +42,7 @@ class User(UserMixin, db.Model):
 
 class Transaction(db.Model):
     id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True)
-    amount: so.Mapped[Decimal] = so.mapped_column(sa.Numeric, nullable=False)
+    amount: so.Mapped[Decimal] = so.mapped_column(sa.Numeric(10, 2), nullable=False)
     type: so.Mapped[str] = so.mapped_column(sa.String(50), nullable=False)
     description: so.Mapped[str] = so.mapped_column(sa.String(100), nullable=False)
     date: so.Mapped[datetime] = so.mapped_column(sa.DateTime, default=datetime.utcnow)

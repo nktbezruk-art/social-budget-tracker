@@ -5,25 +5,47 @@
 <h3>Доходы: {{ total_income }}</h3>
 <h3>Расходы: {{ total_expense }}</h3>
 
-<form method="get" action="">
-    {{ form.hidden_tag() }}
-    
-    {{ form.transaction_type.label }}: {{ form.transaction_type }}
-    <br>
-    {{ form.apply_filter() }}
-    <a href="{{ url_for('transactions.transaction_main') }}">Сбросить</a>
-</form>
+{% if filter_description %}
+<div>
+    <strong>Активные фильтры:</strong> {{ filter_description }}
+</div>
+{% endif %}
+
+<details>
+    <summary>Фильтры</summary>
+    <form method="get" action="">
+        {{ form.hidden_tag() }}
+        
+        <div>
+            {{ form.period.label }}: {{ form.period }}
+        </div>
+        
+        <div>
+            {{ form.category_id.label }}: {{ form.category_id }}
+        </div>
+        
+        <div>
+            {{ form.transaction_type.label }}: {{ form.transaction_type }}
+        </div>
+        
+        {{ form.apply_filter() }}
+        <a href="{{ url_for('transactions.transaction_main') }}">Сбросить</a>
+    </form>
+</details>
 
 {% if transactions %}
-<a href="{{ url_for('transactions.add_transaction') }}">Создать транзакцию</a>
+
 {% for transaction in transactions %}
-<p>{{ transaction.category.name }}</p>
-<p>{{ transaction.amount }}</p>
-<p>{{ transaction.description }}</p>
-<small>{{ transaction.type }}</small>
-<br>
-<a href="{{ url_for('transactions.edit_transaction', transaction_id=transaction.id) }}">Изменить</a>
-<a href="{{ url_for('transactions.delete_transaction', transaction_id=transaction.id) }}">Удалить</a>
+<div>
+    <p>Категория: {{ transaction.category.name }}</p>
+    <p>Сумма: {{ transaction.amount }}</p>
+    <p>Описание: {{ transaction.description }}</p>
+    <small>{{ 'Доход' if transaction.type == 'income' else 'Расход' }}</small>
+    <small>Дата: {{ transaction.date.strftime('%d.%m.%Y') }}</small>
+    
+    <a href="{{ url_for('transactions.edit_transaction', transaction_id=transaction.id) }}">Изменить</a>
+    <a href="{{ url_for('transactions.delete_transaction', transaction_id=transaction.id) }}">Удалить</a>
+</div>
 <hr>
 {% endfor %}
 {% else %}

@@ -1,7 +1,7 @@
 from datetime import datetime
 import calendar
 from flask_wtf import FlaskForm
-from wtforms import StringField, EmailField, PasswordField, SubmitField, DecimalField, SelectField, DateField, RadioField
+from wtforms import StringField, EmailField, PasswordField, SubmitField, DecimalField, SelectField, DateField, RadioField, BooleanField
 from wtforms.validators import DataRequired, Email, EqualTo, Optional
 
 class LoginForm(FlaskForm):
@@ -10,6 +10,8 @@ class LoginForm(FlaskForm):
     
     password = PasswordField("Пароль", validators=[
         DataRequired(message="Поле обязательно для заполнения")])
+    
+    remember = BooleanField("Запомнить меня")
         
     submit = SubmitField('Войти')
 
@@ -56,11 +58,9 @@ class DeleteConfirmForm(FlaskForm):
     
 
 class FilterForm(FlaskForm):
-    specific_date = DateField("Дата", format="%d-%m-%Y", validators=[Optional()])
-    month = SelectField("Месяц", choices=[], validators=[Optional()])
     category_id = SelectField("Категория",
-                              coerce=lambda x: int(x) if x else None, 
-                              validators=[Optional()])
+                      coerce=lambda x: int(x) if x and x != "" else None, 
+                      validators=[Optional()])
     
     transaction_type = RadioField(
         "Тип", 
@@ -69,23 +69,26 @@ class FilterForm(FlaskForm):
             ('income', 'Доходы'),
             ('expense', 'Расходы')
         ],
-        default='all'
-    )
+        default='all')
+    
+    period = RadioField(
+        "Период", 
+        choices=[
+            ("today", "сегодня"),
+            ("this_week", "за эту неделю"),
+            ("this_month", "за этот месяц"),
+            ("last_3_months", "за последние 3 месяца"),
+            ("this_year", "за этот год"),
+            ("all_time", "за все время")
+        ],
+        default="today")
+    
     apply_filter = SubmitField("Применить")
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from app.models import Category
         categories = Category.query.all()
-        self.category_id.choices = [(None, "Все")] + [(c.id, c.name) for c in categories]  # type: ignore
-        
-        current_year = datetime.now().year
-        month_choices = []
-
-        for month_num in range(1, 13):
-            month_name = calendar.month_name[month_num]
-            display_text = f"{month_name} {current_year}"
-            month_choices.append((month_num, display_text))
-        self.month.choices = month_choices
+        self.category_id.choices = [("", "Все")] + [(c.id, c.name) for c in categories]  # type: ignore
         
     

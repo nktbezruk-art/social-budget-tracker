@@ -1,4 +1,5 @@
 from datetime import datetime, time
+from decimal import Decimal
 from flask import url_for, redirect, render_template, session, flash, request
 from flask_login import current_user, login_required
 from . import transactions_bp
@@ -7,40 +8,99 @@ from app.models import Transaction, User
 from app.forms import TransactionForm, DeleteConfirmForm, FilterForm
 
 
-#1. ФИКС БАГОВ (сначала это)
-#   - Исправить фильтр по категории (значение "None" в URL)
-#   - Починить фильтр по месяцу (декабрь = 13 месяц)
-#   - Убрать дублирующий код фильтрации
+def apply_transaction_filters(query, form):
+    from datetime import date, timedelta
+    from app.models import Category, Transaction
+    
+    period = form.period.data
+    category_id = form.category_id.data
+    transaction_type = form.transaction_type.data
+    
+    description_parts = []
+    
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    
+    if period == "today":
+        query = query.filter(Transaction.date >= today,
+                            Transaction.date < tomorrow)
+        description_parts.append("сегодня")
+        
+    elif period == "this_week":
+        days_since_monday = today.weekday()
+        monday = today - timedelta(days=days_since_monday)
+        query = query.filter(Transaction.date >= monday,
+                            Transaction.date < tomorrow)
+        description_parts.append("за эту неделю")
+        
+    elif period == "this_month":
+        first_of_the_month = date(today.year, today.month, 1)
+        query = query.filter(Transaction.date >= first_of_the_month,
+                            Transaction.date < tomorrow)
+        description_parts.append("за этот месяц")
+    
+    elif period == "last_3_months":
+        three_month_ago = today - timedelta(days=90)
+        query = query.filter(Transaction.date >= three_month_ago,
+                            Transaction.date < tomorrow)
+        description_parts.append("за последние 3 мeсяца")
+        
+    elif period == "this_year":
+        first_of_the_year = date(today.year, 1, 1)
+        query = query.filter(Transaction.date >= first_of_the_year,
+                            Transaction.date < tomorrow)
+        description_parts.append("за этот год")
+    
+    elif period == "all_time":
+        description_parts.append("за все время")
+    
+    
+    if category_id:
+        query = query.filter(Transaction.category_id == category_id)
+        category = Category.query.get(category_id)
+        if category:
+            description_parts.append(f"{category.name}")
+    
+    if transaction_type == "all":
+        description_parts.append("Все")
+        
+    elif transaction_type == "income":
+        query = query.filter(Transaction.type == "income")
+        description_parts.append("Доходы")
+    
+    elif transaction_type == "expense":
+        query = query.filter(Transaction.type == "expense")
+        description_parts.append("Расходы")
+        
 
-#2. ДОБАВИТЬ НОВЫЕ ФИЛЬТРЫ (если успеем)
-#   - Категория (работает, но нужно исправить значение)
-#   - Месяц (работает частично, нужно исправить)
-#   - Конкретная дата (приоритет над месяцем)
-
-#3. ПАГИНАЦИЯ (базовая)
-#   - Ограничение 50 транзакций на странице
-#   - Кнопки "Назад"/"Вперед" если транзакций много
-#   - Сохранение фильтров при пагинации
-
-#4. УЛУЧШЕНИЯ UX
-#   - Сделать форму фильтров всплывающей (<details>)
-#   - Показывать активные фильтры (текстом над списком)
-#   - Добавить сброс отдельных фильтров
-
+    if not description_parts:
+        description = "без фильтров"
+    else:
+        description = " • ".join(description_parts)
+    
+    return query, description
+        
+    
 @transactions_bp.route("/")
 @login_required
 def transaction_main():
     form = FilterForm(request.args)
     
+    # Начинаем с запроса, отфильтрованного по текущему пользователю
     query = Transaction.query.filter_by(user_id=current_user.id)
+    filter_description = ""
     
+    # Если форма валидна, применяем фильтры
     if form.validate():
-        if form.transaction_type.data != 'all':
-            query = query.filter(Transaction.type == form.transaction_type.data)
+        query, filter_description = apply_transaction_filters(query, form)
+    else:
+        filter_description = ""
     
+    # Выполняем запрос
     all_transactions = query.all()
-    total_income = sum(t.amount for t in all_transactions if t.type =="income")
-    total_expense = sum(t.amount for t in all_transactions if t.type =="expense")
+    
+    total_income = Decimal(str(sum(t.amount for t in all_transactions if t.type == "income")))
+    total_expense = Decimal(str(sum(t.amount for t in all_transactions if t.type == "expense")))
     balance = total_income - total_expense
     
     return render_template("transactions/all_transactions.html",
@@ -49,8 +109,8 @@ def transaction_main():
                           total_income=total_income, 
                           total_expense=total_expense,
                           balance=balance,
-                          form=form)
-    
+                          form=form,
+                          filter_description=filter_description)  # Добавляем описание фильтров
 
 
 @transactions_bp.route("/add", methods=["GET", "POST"])

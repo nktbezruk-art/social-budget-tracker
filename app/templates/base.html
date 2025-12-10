@@ -18,8 +18,8 @@
                 <li class="navigation_link"><a href="{{ url_for('auth.registration') }}">Зарегистрироваться</a></li>
                 <li class="navigation_link"><a href="{{ url_for('auth.login') }}">Войти</a></li>
                 {% else %}
-                {# <li class="navigation_link"><a href="{{ url_for('transactions.transaction_main') }}">Транзакции</a></li> #}
-                {# <li class="navigation_link"><a href="{{ url_for('transactions.add_transaction') }}">Добавить транзакцию</a></li> #}
+                <li class="navigation_link"><a href="{{ url_for('transactions.transaction_main') }}">Транзакции</a></li>
+                <li class="navigation_link"><a href="{{ url_for('transactions.add_transaction') }}">Добавить транзакцию</a></li>
                 <li class="navigation_link"><a href="{{ url_for('auth.logout') }}">Выйти</a></li>
                 {% endif %}
             </ul>
