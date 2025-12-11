@@ -37,4 +37,7 @@ def create_app():
     app.register_blueprint(social_bp)
     app.register_blueprint(transactions_bp)
 
+    from app import commands
+    commands.register_commands(app)
+    
     return app
