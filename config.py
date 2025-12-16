@@ -26,7 +26,7 @@ class Config:
 
 class DevelopmentConfig(Config):
     TEMPLATES_AUTO_RELOAD = True
-    SQLALCHEMY_ECHO = True
+    SQLALCHEMY_ECHO = False
 
 class ProductionConfig(Config):
     DEBUG = False

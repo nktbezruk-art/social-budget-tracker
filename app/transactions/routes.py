@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, time
 from decimal import Decimal
 from flask import url_for, redirect, render_template, session, flash, request
@@ -7,6 +8,7 @@ from app import db
 from app.models import Transaction, User
 from app.forms import TransactionForm, DeleteConfirmForm, FilterForm
 
+logger = logging.getLogger(__name__)
 
 def apply_transaction_filters(query, form):
     from datetime import date, timedelta
@@ -84,8 +86,8 @@ def apply_transaction_filters(query, form):
 @transactions_bp.route("/")
 @login_required
 def transaction_main():
+    logger.info("Показ транзакций пользователя %s", current_user.id)
     form = FilterForm(request.args)
-    
     # Начинаем с запроса, отфильтрованного по текущему пользователю
     query = Transaction.query.filter_by(user_id=current_user.id)
     filter_description = ""
@@ -134,10 +136,19 @@ def add_transaction():
         try:
             db.session.add(transaction)
             db.session.commit()
+            logger.info("Транзакция создана",
+            extra={
+                "user_id": current_user.id,
+                "transaction_id": transaction.id,
+                "amount": amount,
+                "type": type,
+                "category_id": category_id
+            })
             return redirect(url_for("transactions.transaction_main"))
         except Exception as e:
             db.session.rollback()
             flash("Что-то пошло не так!", "error")
+            logger.error("Возникла непредвиденная ошибка", exc_info=True)
             return render_template("transactions/add.html", form=form)
     else:
         return render_template("transactions/add.html", form=form)
@@ -150,10 +161,24 @@ def edit_transaction(transaction_id):
     transaction = Transaction.query.filter_by(id=transaction_id).first()
     if not transaction:
         flash("Транзакция не найдена!", "error")
+        logger.warning("Попытка найти несуществующую транзакцию",
+                     extra={
+                         "user_id": current_user.id,
+                         "user_username": current_user.username,
+                         "ip": request.remote_addr,
+                         "url": request.path
+                     })
         return redirect(url_for("transactions.transaction_main"))
     form = TransactionForm()
     if transaction.user_id != current_user.id:
         flash("У вас недостаточно прав!", "error")
+        logger.warning("Попытка редактирования чужой транзакции",
+                        extra={
+                         "user_id": current_user.id,
+                         "user_username": current_user.username,
+                         "transaction_id": transaction.id,
+                         "ip": request.remote_addr,
+                     })
         return redirect(url_for("transactions.transaction_main"))
     if form.validate_on_submit():
         transaction.amount = form.amount.data
@@ -164,10 +189,18 @@ def edit_transaction(transaction_id):
         transaction.user = current_user 
         try:
             db.session.commit()
+            logger.info("Успешное изменение транзакции",
+                        extra={
+                         "user_id": current_user.id,
+                         "user_username": current_user.username,
+                         "transaction_id": transaction.id,
+                         "ip": request.remote_addr
+                     })
             return redirect(url_for("transactions.transaction_main"))
         except Exception as e:
             db.session.rollback()
             flash("Что-то пошло не так!", "error")
+            logger.error("Непредвиденная ошибка при изменении транзакции", exc_info=True)
             return render_template("transactions/edit.html", form=form)
     else:
         if request.method == "GET":
@@ -184,9 +217,23 @@ def delete_transaction(transaction_id):
     transaction = Transaction.query.filter_by(id=transaction_id).first()
     if not transaction:
         flash("Транзакция не найдена!", "error")
+        logger.warning("Попытка найти несуществующую транзакцию",
+                     extra={
+                         "user_id": current_user.id,
+                         "user_username": current_user.username,
+                         "ip": request.remote_addr,
+                         "url": request.path
+                     })
         return redirect(url_for("transactions.transaction_main"))
     if transaction.user_id != current_user.id:
         flash("У вас недостаточно прав!", "error")
+        logger.warning("Попытка удаления чужой транзакции",
+                        extra={
+                         "user_id": current_user.id,
+                         "user_username": current_user.username,
+                         "transaction_id": transaction.id,
+                         "ip": request.remote_addr,
+                     })
         return redirect(url_for("transactions.transaction_main"))
     if request.method == "GET":
         return render_template("transactions/delete.html", form=form)
@@ -197,10 +244,17 @@ def delete_transaction(transaction_id):
             try:
                 db.session.delete(transaction)
                 db.session.commit()
+                logger.info("Успешное удаление транзакции",
+                            extra={
+                                "user_id": current_user.id,
+                                "user_username": current_user.username,
+                                "url": request.path
+                            })
                 return redirect(url_for("transactions.transaction_main"))
             except Exception as e:
                 db.session.rollback()
                 flash("Что-то пошло не так!", "error")
+                logger.error("Непредвиденная ошибка при удалении", exc_info=True)
                 return redirect(url_for("transactions.transaction_main"))
         elif cancel:
             return redirect(url_for("transactions.transaction_main"))

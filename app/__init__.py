@@ -1,10 +1,27 @@
 import os
-from flask import Flask
+from flask import Flask, request, render_template
 from config import ProductionConfig, DevelopmentConfig, TestConfig
 from app.db import db, migrate, login_manager, csrf
 
 def create_app():
     app = Flask(__name__)
+    
+    import logging
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        force=True
+    )
+    
+    logger = logging.getLogger("app")
+    logger.info('Social Budget Tracker application starting...')
+    logger.info('Server starting at http://127.0.0.1:5000')
+    logging.getLogger('werkzeug').disabled = True
+    
+    logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
+    logging.getLogger('flask_wtf').setLevel(logging.WARNING)
     
     config_name = os.environ.get("FLASK_ENV", "development")
         
@@ -36,6 +53,24 @@ def create_app():
     app.register_blueprint(reports_bp)
     app.register_blueprint(social_bp)
     app.register_blueprint(transactions_bp)
+    
+    def register_errorhandlers(app):
+        @app.errorhandler(404)
+        def error_404(error):
+            logger.warning("Ошибка 404",
+                           extra={
+                               "url": request.path,
+                               "ip": request.remote_addr,
+                               "request_method": request.method
+                           })
+            return render_template("errors/404.html", title="Ошибка 404"), 404
+        
+        @app.errorhandler(500)
+        def error_500(error):
+            logger.error("Ошибка 500", exc_info=True)
+            return render_template("errors/500.html", title="Ошибка 500"), 500
+    
+    register_errorhandlers(app)
 
     from app import commands
     commands.register_commands(app)

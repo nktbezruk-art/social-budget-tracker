@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Ошибка 500</h1>
+<h3>Внутренняя ошибка сервера</h3>
+<p>Произошла внутренняя ошибка. Мы уже работаем над исправлением</p><br>
+<a href="{{ url_for('transactions.transaction_main') }}">Вернуться к списку транзакций</a>
+
+{% endblock %}
