@@ -1,7 +1,7 @@
 import os
 from flask import Flask, request, render_template
 from config import ProductionConfig, DevelopmentConfig, TestConfig
-from app.db import db, migrate, login_manager, csrf
+from app.db import db, migrate, login_manager, csrf, jwt
 
 def create_app():
     app = Flask(__name__)
@@ -31,7 +31,9 @@ def create_app():
         app.config.from_object(ProductionConfig)
     else:
         app.config.from_object(TestConfig)
-        
+    
+    app.config['RESTFUL_JSON'] = {'ensure_ascii': False}
+    
     if not os.environ.get("SECRET_KEY", ""):
         raise ValueError("SECRET_KEY must be set in .env file")
     
@@ -39,6 +41,7 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
+    jwt.init_app(app)
     
     from app import models
     
@@ -74,5 +77,9 @@ def create_app():
 
     from app import commands
     commands.register_commands(app)
+    
+    from app.api import api_bp
+    app.register_blueprint(api_bp)
+    csrf.exempt(api_bp)
     
     return app
