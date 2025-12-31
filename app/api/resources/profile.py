@@ -164,7 +164,7 @@ class ChangePasswordAPI(Resource):
                 "Неверный текущий пароль",
                 extra=make_extra(user_id=user_id)
             )
-            return api_error("Неверный пароль", 409)
+            return api_error("Неверный пароль", 401)
         if len(new_password) < 6:
             validation_logger_warning(user_id, "password", new_password)
             return api_error("Новый пароль должен содержать минимум 6 символов", 400)
