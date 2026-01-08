@@ -1,7 +1,10 @@
 import logging
+import re
+
 from flask import request
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
+
 from app.models import User
 from app.api.errors import api_error
 from app.db import db
@@ -9,11 +12,11 @@ from app.api.resources.auth import make_extra
 
 logger = logging.getLogger(__name__)
 
+
 def validation_logger_warning(user_id, field_name, data):
-    """Логирование валидационных ошибок"""
+    """Логирование валидационных ошибок."""
     # Не логируем пароли
     log_data = "[REDACTED]" if field_name == "password" else data
-    
     return logger.warning(
         "Валидационная ошибка при изменении данных профиля",
         extra=make_extra(user_id=user_id, data=log_data)
@@ -44,14 +47,12 @@ class ProfileAPI(Resource):
                 "id": user.id,
                 "username": user.username,
                 "email": user.email,
-                "created_at": user.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                "created_at": user.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             }
         }, 200
 
     @jwt_required()
     def put(self):
-        import re
-
         data = request.get_json()
         user_id = int(get_jwt_identity())
         logger.info(
@@ -69,13 +70,19 @@ class ProfileAPI(Resource):
             username = data["username"]
             if len(username) < 3:
                 validation_logger_warning(user_id, "username", username)
-                return api_error("Имя пользователя должно быть не короче 3 символов", 400)
+                return api_error(
+                    "Имя пользователя должно быть не короче 3 символов", 400
+                )
             if len(username) > 20:
                 validation_logger_warning(user_id, "username", username)
-                return api_error("Имя пользователя должно быть не длиннее 20 символов", 400)
+                return api_error(
+                    "Имя пользователя должно быть не длиннее 20 символов", 400
+                )
             if not username.isalnum():
                 validation_logger_warning(user_id, "username", username)
-                return api_error("Имя пользователя должно содержать только буквы и цифры", 400)
+                return api_error(
+                    "Имя должно содержать только буквы и цифры", 400
+                )
             existing_user = User.query.filter_by(username=username).first()
             if existing_user and existing_user.id != user_id:
                 logger.warning(
@@ -90,8 +97,8 @@ class ProfileAPI(Resource):
             user.username = username
 
         if "email" in data:
-            email = data['email']
-            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            email = data["email"]
+            email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
             if not re.match(email_pattern, email):
                 validation_logger_warning(user_id, "email", email)
                 return api_error("Неверный формат email", 400)
@@ -127,7 +134,9 @@ class ProfileAPI(Resource):
                     "id": user.id,
                     "username": user.username,
                     "email": user.email,
-                    "created_at": user.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                    "created_at": user.created_at.strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
                 }
             }, 200
 
@@ -167,7 +176,9 @@ class ChangePasswordAPI(Resource):
             return api_error("Неверный пароль", 401)
         if len(new_password) < 6:
             validation_logger_warning(user_id, "password", new_password)
-            return api_error("Новый пароль должен содержать минимум 6 символов", 400)
+            return api_error(
+                "Новый пароль должен содержать минимум 6 символов", 400
+            )
 
         if current_password == new_password:
             validation_logger_warning(user_id, "password", new_password)
@@ -179,8 +190,9 @@ class ChangePasswordAPI(Resource):
 
         if new_password.lower() in [user.username.lower(), user.email.lower()]:
             validation_logger_warning(user_id, "password", new_password)
-            return api_error("Пароль не должен содержать имя пользователя или email", 400)
-        
+            return api_error(
+                "Пароль не должен содержать имя пользователя или email", 400
+            )
         logger.info(
             "Пароль успешно изменен",
             extra=make_extra(user_id=user_id)
