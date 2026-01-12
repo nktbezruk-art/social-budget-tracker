@@ -38,10 +38,20 @@
 {% for transaction in transactions %}
 <div>
     <p>Категория: {{ transaction.category.name }}</p>
-    <p>Сумма: {{ transaction.amount }}</p>
+    <p>Сумма: <a href="{{ url_for('transactions.view_transaction', transaction_id=transaction.id) }}">{{ transaction.amount }}</a></p>
     <p>Описание: {{ transaction.description }}</p>
     <small>{{ 'Доход' if transaction.type == 'income' else 'Расход' }}</small>
     <small>Дата: {{ transaction.date.strftime('%d.%m.%Y') }}</small>
+
+    {% if transaction.image_filename %}
+    <div>
+        <img src="{{ url_for('static', filename='uploads/transactions/' + transaction.image_filename) }}" 
+             alt="Чек к транзакции" 
+             style="max-width: 100px; max-height: 100px;">
+        <br>
+        <small>Прикреплен чек</small>
+    </div>
+    {% endif %}
     
     <a href="{{ url_for('transactions.edit_transaction', transaction_id=transaction.id) }}">Изменить</a>
     <a href="{{ url_for('transactions.delete_transaction', transaction_id=transaction.id) }}">Удалить</a>

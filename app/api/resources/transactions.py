@@ -1,5 +1,7 @@
 import datetime
 import logging
+import os
+import uuid
 
 from flask import request
 from flask_restful import Resource
@@ -11,6 +13,45 @@ from app.api.errors import api_error
 from app.api.resources.auth import make_extra
 
 logger = logging.getLogger(__name__)
+
+
+def save_receipt_image_api(file_data, filename):
+    """Сохраняет изображение чека для API и возвращает имя файла."""
+    if not file_data or not filename:
+        return None
+
+    if "." in filename:
+        ext = filename.rsplit(".", 1)[1].lower()
+        if ext not in ["jpg", "jpeg", "png", "gif"]:
+            return None
+    else:
+        return None
+
+    unique_filename = f"{uuid.uuid4()}.{ext}"
+    upload_folder = "app/static/uploads/transactions"
+    os.makedirs(upload_folder, exist_ok=True)
+    filepath = os.path.join(upload_folder, unique_filename)
+
+    try:
+        with open(filepath, "wb") as f:
+            f.write(file_data)
+        return unique_filename
+    except Exception as e:
+        logger.error(f"Ошибка сохранения файла в API: {str(e)}")
+        return None
+
+
+def delete_receipt_image_api(filename):
+    """Удаляет изображение чека для API."""
+    if not filename:
+        return
+
+    filepath = os.path.join("app/static/uploads/transactions", filename)
+    try:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    except Exception as e:
+        logger.error(f"Ошибка удаления файла {filename} в API: {str(e)}")
 
 
 class TransactionListAPI(Resource):
@@ -42,6 +83,7 @@ class TransactionListAPI(Resource):
                 "description": t.description,
                 "date": t.date.strftime("%Y-%m-%d %H:%M:%S"),
                 "category": t.category.name if t.category else None,
+                "has_image": t.image_filename is not None,
             })
         logger.info(
             "Список транзакций получен",
@@ -64,7 +106,13 @@ class TransactionListAPI(Resource):
             extra=make_extra(user_id=user_id)
         )
 
-        data = request.get_json()
+        if request.content_type and "multipart/form-data" in request.content_type:  # noqa: E501
+            data = request.form.to_dict()
+            file = request.files.get("receipt_image")
+        else:
+            data = request.get_json()
+            file = None
+
         if not data:
             logger.warning(
                 "Отсутствует JSON тело при создании транзакции",
@@ -84,10 +132,10 @@ class TransactionListAPI(Resource):
             )
             return api_error("Отсутствуют поля", 400, f"{', '.join(missing)}")
 
-        t_amount = data.get("amount", None)
+        t_amount = float(data.get("amount", 0))
         t_type = data.get("type", None)
         t_description = data.get("description", None)
-        t_category_id = data.get("category_id", None)
+        t_category_id = int(data.get("category_id", 0))
         t_date = data.get("date", None)
 
         if t_amount < 0:
@@ -123,6 +171,17 @@ class TransactionListAPI(Resource):
             )
             return api_error("Категория не найдена", 400)
 
+        image_filename = None
+        if file and file.filename:
+            file_data = file.read()
+            image_filename = save_receipt_image_api(file_data, file.filename)
+            if image_filename is None:
+                logger.warning(
+                    "Ошибка загрузки изображения в API",
+                    extra=make_extra(user_id=user_id)
+                )
+                return api_error("Ошибка при сохранении изображения", 400)
+
         try:
             if not t_date:
                 t_date = datetime.datetime.utcnow()
@@ -136,6 +195,7 @@ class TransactionListAPI(Resource):
                 date=t_date,
                 category_id=t_category_id,
                 user_id=user_id,
+                image_filename=image_filename,
             )
 
         except Exception as e:
@@ -160,6 +220,8 @@ class TransactionListAPI(Resource):
             db.session.commit()
         except Exception as e:
             db.session.rollback()
+            if image_filename:
+                delete_receipt_image_api(image_filename)
             logger.error(
                 "Ошибка базы данных при создании транзакции",
                 exc_info=True,
@@ -171,26 +233,34 @@ class TransactionListAPI(Resource):
             return api_error("Ошибка базы данных", 500, f"{str(e)}")
 
         logger.info(
-            "Транзакция успешно создана",
+            "Транзакция успешно создана через API",
             extra=make_extra(
                 user_id=user_id,
                 data={
                     "transaction_id": transaction.id,
                     "amount": t_amount,
                     "type": t_type,
+                    "has_image": image_filename is not None,
                 }
             )
         )
 
-        return {
+        response_data = {
             "message": "Транзакция создана",
             "transaction": {
                 "id": transaction.id,
                 "amount": float(transaction.amount),
                 "description": transaction.description,
                 "date": transaction.date.strftime("%Y-%m-%d %H:%M:%S"),
+                "has_image": image_filename is not None,
             }
-        }, 201
+        }
+
+        if image_filename:
+            image_url = f"/static/uploads/transactions/{image_filename}"
+            response_data["transaction"]["image_url"] = image_url
+
+        return response_data, 201
 
 
 class TransactionAPI(Resource):
@@ -199,7 +269,7 @@ class TransactionAPI(Resource):
         user_id = int(get_jwt_identity())
 
         logger.info(
-            "Запрос транзакции",
+            "Запрос транзакции через API",
             extra=make_extra(user_id=user_id, data={"transaction_id": id})
         )
 
@@ -226,30 +296,34 @@ class TransactionAPI(Resource):
             return api_error("У вас недостаточно прав", 403)
 
         logger.info(
-            "Транзакция получена",
+            "Транзакция получена через API",
             extra=make_extra(user_id=user_id, data={"transaction_id": id})
         )
 
-        return {
-            "transaction": {
-                "id": transaction.id,
-                "amount": round(float(transaction.amount), 2),
-                "type": transaction.type,
-                "description": transaction.description,
-                "date": transaction.date.strftime("%Y-%m-%d %H:%M:%S"),
-                "category": (
-                    transaction.category.name if transaction.category
-                    else None
-                ),
-            }
-        }, 200
+        response_data = {
+            "id": transaction.id,
+            "amount": round(float(transaction.amount), 2),
+            "type": transaction.type,
+            "description": transaction.description,
+            "date": transaction.date.strftime("%Y-%m-%d %H:%M:%S"),
+            "category": (
+                transaction.category.name if transaction.category else None
+            ),
+            "has_image": transaction.image_filename is not None,
+        }
+
+        if transaction.image_filename:
+            image_url = f"/static/uploads/transactions/{transaction.image_filename}"  # noqa: E501
+            response_data["image_url"] = image_url
+
+        return {"transaction": response_data}, 200
 
     @jwt_required()
     def delete(self, id):
         user_id = int(get_jwt_identity())
 
         logger.info(
-            "Запрос удаления транзакции",
+            "Запрос удаления транзакции через API",
             extra=make_extra(user_id=user_id, data={"transaction_id": id})
         )
 
@@ -277,19 +351,26 @@ class TransactionAPI(Resource):
             )
             return api_error("У вас недостаточно прав", 403)
 
+        image_filename = transaction.image_filename
+
         transaction_data = {
             "transaction_id": id,
             "amount": float(transaction.amount),
             "type": transaction.type,
+            "had_image": image_filename is not None,
         }
 
         try:
             db.session.delete(transaction)
             db.session.commit()
+
+            if image_filename:
+                delete_receipt_image_api(image_filename)
+
         except Exception as e:
             db.session.rollback()
             logger.error(
-                "Ошибка при удалении транзакции",
+                "Ошибка при удалении транзакции через API",
                 exc_info=True,
                 extra=make_extra(
                     user_id=user_id, data={"transaction_id": id}
@@ -298,7 +379,7 @@ class TransactionAPI(Resource):
             return api_error("Ошибка при удалении", 500, f"{str(e)}")
 
         logger.info(
-            "Транзакция удалена",
+            "Транзакция удалена через API",
             extra=make_extra(user_id=user_id, data=transaction_data)
         )
 
@@ -309,7 +390,7 @@ class TransactionAPI(Resource):
         user_id = int(get_jwt_identity())
 
         logger.info(
-            "Запрос обновления транзакции",
+            "Запрос обновления транзакции через API",
             extra=make_extra(user_id=user_id, data={"transaction_id": id})
         )
 
@@ -334,7 +415,13 @@ class TransactionAPI(Resource):
             )
             return api_error("У вас недостаточно прав", 403)
 
-        data = request.get_json()
+        if request.content_type and "multipart/form-data" in request.content_type:  # noqa: E501
+            data = request.form.to_dict()
+            file = request.files.get("receipt_image")
+        else:
+            data = request.get_json()
+            file = None
+
         if not data:
             logger.warning(
                 "Нет данных для обновления транзакции",
@@ -342,23 +429,37 @@ class TransactionAPI(Resource):
             )
             return api_error("Нет данных для обновления", 400)
 
+        old_image_filename = transaction.image_filename
+        new_image_filename = None
+
+        if file and file.filename:
+            file_data = file.read()
+            new_image_filename = save_receipt_image_api(file_data, file.filename)  # noqa: E501
+            if new_image_filename is not None:
+                transaction.image_filename = new_image_filename
+                if old_image_filename and (
+                    old_image_filename != new_image_filename
+                ):
+                    delete_receipt_image_api(old_image_filename)
+
         if "amount" in data:
-            if data["amount"] < 0:
+            amount = float(data["amount"])
+            if amount < 0:
                 logger.warning(
                     "Попытка обновления с отрицательной суммой",
                     extra=make_extra(
                         user_id=user_id,
                         data={
                             "transaction_id": id,
-                            "amount": data["amount"],
+                            "amount": amount,
                         }
                     )
                 )
                 return api_error(
                     "Сумма не может быть отрицательной", 400,
-                    f"Получено {data['amount']}"
+                    f"Получено {amount}"
                 )
-            transaction.amount = data["amount"]
+            transaction.amount = amount
 
         if "type" in data:
             if data["type"] not in ["income", "expense"]:
@@ -421,6 +522,8 @@ class TransactionAPI(Resource):
             db.session.commit()
         except Exception as e:
             db.session.rollback()
+            if new_image_filename:
+                delete_receipt_image_api(new_image_filename)
             logger.error(
                 "Ошибка базы данных при обновлении транзакции",
                 exc_info=True,
@@ -435,27 +538,34 @@ class TransactionAPI(Resource):
             return api_error("Ошибка базы данных", 500, f"{str(e)}")
 
         logger.info(
-            "Транзакция обновлена",
+            "Транзакция обновлена через API",
             extra=make_extra(
                 user_id=user_id,
                 data={
                     "transaction_id": id,
                     "updated_fields": list(data.keys()),
+                    "image_updated": new_image_filename is not None,
                 }
             )
         )
 
+        response_data = {
+            "id": transaction.id,
+            "amount": round(float(transaction.amount), 2),
+            "type": transaction.type,
+            "description": transaction.description,
+            "date": transaction.date.strftime("%Y-%m-%d %H:%M:%S"),
+            "category": (
+                transaction.category.name if transaction.category else None
+            ),
+            "has_image": transaction.image_filename is not None,
+        }
+
+        if transaction.image_filename:
+            image_url = f"/static/uploads/transactions/{transaction.image_filename}"  # noqa: E501
+            response_data["image_url"] = image_url
+
         return {
             "message": "Обновлено",
-            "transaction": {
-                "id": transaction.id,
-                "amount": round(float(transaction.amount), 2),
-                "type": transaction.type,
-                "description": transaction.description,
-                "date": transaction.date.strftime("%Y-%m-%d %H:%M:%S"),
-                "category": (
-                    transaction.category.name if transaction.category
-                    else None
-                ),
-            }
+            "transaction": response_data
         }, 200

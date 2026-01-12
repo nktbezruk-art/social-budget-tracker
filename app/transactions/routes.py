@@ -1,4 +1,6 @@
 import logging
+import os
+import uuid
 from decimal import Decimal
 
 from flask import (
@@ -16,6 +18,44 @@ from app.models import Transaction
 from app.forms import TransactionForm, DeleteConfirmForm, FilterForm
 
 logger = logging.getLogger(__name__)
+
+
+def save_receipt_image(file):
+    """Сохраняет изображение чека и возвращает имя файла."""
+    if not file or file.filename == "":
+        return None
+
+    if "." in file.filename:
+        ext = file.filename.rsplit(".", 1)[1].lower()
+        if ext not in ["jpg", "jpeg", "png", "gif"]:
+            return None
+    else:
+        return None
+
+    filename = f"{uuid.uuid4()}.{ext}"
+    upload_folder = "app/static/uploads/transactions"
+    os.makedirs(upload_folder, exist_ok=True)
+    filepath = os.path.join(upload_folder, filename)
+
+    try:
+        file.save(filepath)
+        return filename
+    except Exception as e:
+        logger.error(f"Ошибка сохранения файла: {str(e)}")
+        return None
+
+
+def delete_receipt_image(filename):
+    """Удаляет изображение чека."""
+    if not filename:
+        return
+
+    filepath = os.path.join("app/static/uploads/transactions", filename)
+    try:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    except Exception as e:
+        logger.error(f"Ошибка удаления файла {filename}: {str(e)}")
 
 
 def apply_transaction_filters(query, form):
@@ -48,7 +88,8 @@ def apply_transaction_filters(query, form):
     elif period == "this_month":
         first_of_the_month = date(today.year, today.month, 1)
         query = query.filter(
-            Transaction.date >= first_of_the_month, Transaction.date < tomorrow
+            Transaction.date >= first_of_the_month,
+            Transaction.date < tomorrow,
         )
         description_parts.append("за этот месяц")
 
@@ -140,13 +181,21 @@ def add_transaction():
         category_id = form.category_id.data
         date = form.date.data
 
+        image_filename = None
+        if form.receipt_image.data:
+            image_filename = save_receipt_image(form.receipt_image.data)
+            if image_filename is None:
+                flash("Ошибка при сохранении изображения", "error")
+                return render_template("transactions/add.html", form=form)
+
         transaction = Transaction(
-            amount=amount,  # type: ignore
-            type=type,  # type: ignore
-            description=description,  # type: ignore
-            category_id=category_id,  # type: ignore
-            user=current_user,  # type: ignore
-            date=date,  # type: ignore
+            amount=amount,
+            type=type,
+            description=description,
+            category_id=category_id,
+            user=current_user,
+            date=date,
+            image_filename=image_filename,
         )
 
         try:
@@ -160,11 +209,14 @@ def add_transaction():
                     "amount": amount,
                     "type": type,
                     "category_id": category_id,
+                    "has_image": image_filename is not None,
                 },
             )
             return redirect(url_for("transactions.transaction_main"))
         except Exception:
             db.session.rollback()
+            if image_filename:
+                delete_receipt_image(image_filename)
             flash("Что-то пошло не так!", "error")
             logger.error("Возникла непредвиденная ошибка", exc_info=True)
             return render_template("transactions/add.html", form=form)
@@ -188,7 +240,9 @@ def edit_transaction(transaction_id):
             },
         )
         return redirect(url_for("transactions.transaction_main"))
+
     form = TransactionForm()
+
     if transaction.user_id != current_user.id:
         flash("У вас недостаточно прав!", "error")
         logger.warning(
@@ -201,13 +255,25 @@ def edit_transaction(transaction_id):
             },
         )
         return redirect(url_for("transactions.transaction_main"))
+
     if form.validate_on_submit():
+        old_image_filename = transaction.image_filename
+
+        if form.receipt_image.data:
+            new_image_filename = save_receipt_image(form.receipt_image.data)
+            if new_image_filename is not None:
+                transaction.image_filename = new_image_filename
+                if old_image_filename and (
+                    old_image_filename != new_image_filename
+                ):
+                    delete_receipt_image(old_image_filename)
+
         transaction.amount = form.amount.data
         transaction.type = form.type.data
         transaction.description = form.description.data
         transaction.category_id = form.category_id.data
         transaction.date = form.date.data
-        transaction.user = current_user
+
         try:
             db.session.commit()
             logger.info(
@@ -217,6 +283,7 @@ def edit_transaction(transaction_id):
                     "user_username": current_user.username,
                     "transaction_id": transaction.id,
                     "ip": request.remote_addr,
+                    "image_updated": form.receipt_image.data is not None,
                 },
             )
             return redirect(url_for("transactions.transaction_main"))
@@ -224,13 +291,65 @@ def edit_transaction(transaction_id):
             db.session.rollback()
             flash("Что-то пошло не так!", "error")
             logger.error(
-                "Непредвиденная ошибка при изменении транзакции", exc_info=True
+                "Непредвиденная ошибка при изменении транзакции",
+                exc_info=True,
             )
-            return render_template("transactions/edit.html", form=form)
+            return render_template(
+                "transactions/edit.html", form=form, transaction=transaction
+            )
     else:
         if request.method == "GET":
             form.process(obj=transaction)
-        return render_template("transactions/edit.html", form=form)
+        return render_template(
+            "transactions/edit.html", form=form, transaction=transaction
+        )
+
+
+@transactions_bp.route("/<int:transaction_id>")
+@login_required
+def view_transaction(transaction_id):
+    """Детальный просмотр транзакции с изображением."""
+    transaction = Transaction.query.filter_by(id=transaction_id).first()
+
+    if not transaction:
+        flash("Транзакция не найдена!", "error")
+        logger.warning(
+            "Попытка найти несуществующую транзакцию",
+            extra={
+                "user_id": current_user.id,
+                "user_username": current_user.username,
+                "ip": request.remote_addr,
+                "url": request.path,
+            },
+        )
+        return redirect(url_for("transactions.transaction_main"))
+
+    if transaction.user_id != current_user.id:
+        flash("У вас недостаточно прав!", "error")
+        logger.warning(
+            "Попытка просмотра чужой транзакции",
+            extra={
+                "user_id": current_user.id,
+                "user_username": current_user.username,
+                "transaction_id": transaction.id,
+                "ip": request.remote_addr,
+            },
+        )
+        return redirect(url_for("transactions.transaction_main"))
+
+    logger.info(
+        "Просмотр транзакции",
+        extra={
+            "user_id": current_user.id,
+            "transaction_id": transaction.id,
+        },
+    )
+
+    return render_template(
+        "transactions/detail.html",
+        title="Детали транзакции",
+        transaction=transaction,
+    )
 
 
 @transactions_bp.route("/<int:transaction_id>/delete", methods=["POST", "GET"])
@@ -250,6 +369,7 @@ def delete_transaction(transaction_id):
             },
         )
         return redirect(url_for("transactions.transaction_main"))
+
     if transaction.user_id != current_user.id:
         flash("У вас недостаточно прав!", "error")
         logger.warning(
@@ -262,21 +382,32 @@ def delete_transaction(transaction_id):
             },
         )
         return redirect(url_for("transactions.transaction_main"))
+
     if request.method == "GET":
-        return render_template("transactions/delete.html", form=form)
+        return render_template(
+            "transactions/delete.html", form=form, transaction=transaction
+        )
     else:
         delete = form.submit_delete.data
         cancel = form.submit_cancel.data
+
         if delete:
+            image_filename = transaction.image_filename
+
             try:
                 db.session.delete(transaction)
                 db.session.commit()
+
+                if image_filename:
+                    delete_receipt_image(image_filename)
+
                 logger.info(
                     "Успешное удаление транзакции",
                     extra={
                         "user_id": current_user.id,
                         "user_username": current_user.username,
                         "url": request.path,
+                        "had_image": image_filename is not None,
                     },
                 )
                 return redirect(url_for("transactions.transaction_main"))

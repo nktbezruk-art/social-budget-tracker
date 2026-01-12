@@ -84,4 +84,35 @@ def create_app():
     app.register_blueprint(api_bp)
     csrf.exempt(api_bp)
 
+    # Контекстный процессор для работы с загрузками файлов
+    @app.context_processor
+    def utility_processor():
+        """Добавляет вспомогательные функции в контекст всех шаблонов."""
+        def get_transaction_image_url(filename):
+            """Возвращает полный URL для изображения транзакции."""
+            if not filename:
+                return None
+            return f"/static/uploads/transactions/{filename}"
+
+        def transaction_has_image(transaction):
+            """Проверяет, есть ли у транзакции изображение."""
+            return (
+                hasattr(transaction, 'image_filename') and
+                transaction.image_filename
+            )
+
+        return dict(
+            get_transaction_image_url=get_transaction_image_url,
+            transaction_has_image=transaction_has_image,
+        )
+
+    # Создаем папку для загрузок при старте приложения
+    with app.app_context():
+        if app.static_folder:
+            uploads_dir = os.path.join(
+                app.static_folder, 'uploads', 'transactions'
+            )
+            os.makedirs(uploads_dir, exist_ok=True)
+            logger.info(f"Папка для загрузок создана: {uploads_dir}")
+
     return app

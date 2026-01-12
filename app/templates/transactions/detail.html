@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Детали транзакции</h1>
+
+<div>
+    <p><strong>Категория:</strong> {{ transaction.category.name }}</p>
+    <p><strong>Сумма:</strong> {{ transaction.amount }}</p>
+    <p><strong>Тип:</strong> {{ 'Доход' if transaction.type == 'income' else 'Расход' }}</p>
+    <p><strong>Описание:</strong> {{ transaction.description or 'Нет описания' }}</p>
+    <p><strong>Дата транзакции:</strong> {{ transaction.date.strftime('%d.%m.%Y %H:%M') }}</p>
+    
+    {% if transaction.image_filename %}
+    <div>
+        <h3>Прикрепленный чек:</h3>
+        <img src="{{ url_for('static', filename='uploads/transactions/' + transaction.image_filename) }}" 
+             alt="Чек к транзакции" 
+             style="max-width: 400px; max-height: 400px;">
+        <br>
+        <small>Файл: {{ transaction.image_filename }}</small>
+    </div>
+    {% else %}
+    <p><em>К этой транзакции не прикреплен чек</em></p>
+    {% endif %}
+    
+    <hr>
+    <div>
+        <a href="{{ url_for('transactions.edit_transaction', transaction_id=transaction.id) }}">Изменить</a>
+        <a href="{{ url_for('transactions.delete_transaction', transaction_id=transaction.id) }}">Удалить</a>
+        <a href="{{ url_for('transactions.transaction_main') }}">Назад к списку</a>
+    </div>
+</div>
+{% endblock %}

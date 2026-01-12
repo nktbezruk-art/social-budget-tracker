@@ -4,7 +4,7 @@
 
 <h1>Создание транзакции</h1>
 
-<form method="post">
+<form method="post" enctype="multipart/form-data">
     {{ form.hidden_tag() }}
 
     {{ form.amount.label }}
@@ -46,6 +46,10 @@
     <span class="error">[{{ error }}]</span>
     {% endfor %}
     <br>
+
+    {{ form.receipt_image.label }}
+    <br>
+    {{ form.receipt_image() }}
 
     {{ form.submit() }}
 
