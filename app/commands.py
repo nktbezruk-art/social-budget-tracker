@@ -64,9 +64,29 @@ def register_commands(app):
                     click.secho(f"✅ Категория {name} добавлена!", fg="green")
 
         db.session.commit()
+
+        try:
+            from app.cache import GLOBAL_CACHE
+            # Удаляем все записи связанные с Category.get_all_cached
+            keys_to_delete = []
+            for key in GLOBAL_CACHE.keys():
+                if isinstance(key, tuple) and len(key) > 0:
+                    func_name = key[0]  # Первый элемент - имя функции
+                    if func_name == 'get_all_cached':
+                        keys_to_delete.append(key)
+
+            for key in keys_to_delete:
+                del GLOBAL_CACHE[key]
+
+            if keys_to_delete and details:
+                click.echo(
+                    f"🧹 Очищен кеш категорий ({len(keys_to_delete)} записей)")
+        except Exception as e:
+            if details:
+                click.echo(f"⚠️  Ошибка очистки кеша: {e}")
+
         if added > 0:
             click.secho(
-                f"🎯 Добавлено {added} категорий", fg="green", bold=True
-            )
+                f"🎯 Добавлено {added} категорий", fg="green", bold=True)
         if existed > 0:
             click.echo(f"⏭️  Пропущено {existed} существующих категорий")

@@ -52,7 +52,7 @@ class TransactionForm(FlaskForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from app.models import Category
-        categories = Category.query.all()
+        categories = Category.get_all_cached()
         self.category_id.choices = [(c.id, c.name) for c in categories]
 
 

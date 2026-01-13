@@ -6,6 +6,7 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.db import db
+from app.cache import cache_for
 
 
 class User(UserMixin, db.Model):
@@ -32,6 +33,22 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    @cache_for(seconds=600)  # 10 минут
+    def get_profile_cached(self):
+        """Кешированные данные профиля."""
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'created_at': self.created_at
+        }
+
+    @classmethod
+    @cache_for(seconds=300)
+    def get_by_id_cached(cls, user_id):
+        """Найти пользователя по ID с кешированием."""
+        return cls.query.get(user_id)
 
 
 class Transaction(db.Model):
@@ -72,3 +89,9 @@ class Category(db.Model):
     transactions: so.Mapped[List["Transaction"]] = so.relationship(
         back_populates="category"
     )
+
+    @classmethod
+    @cache_for(seconds=300)
+    def get_all_cached(cls):
+        """Возвращает все категории с кешированием."""
+        return cls.query.all()
