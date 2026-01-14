@@ -3,7 +3,7 @@ from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField, FileSize
 from wtforms import (StringField, EmailField, PasswordField,
                      SubmitField, DecimalField, SelectField,
-                     DateField, RadioField, BooleanField)
+                     DateField, BooleanField)
 from wtforms.validators import DataRequired, Email, EqualTo, Optional
 
 
@@ -34,8 +34,8 @@ class TransactionForm(FlaskForm):
     amount = DecimalField("Величина", validators=[
         DataRequired(message="Поле обязательно для заполнения")])
     type = SelectField("Тип", choices=[
-        ('income', 'Доход'),      # 'income' в БД, 'Доход' в интерфейсе
-        ('expense', 'Расход')     # 'expense' в БД, 'Расход' в интерфейсе
+        ('income', 'Доход'),
+        ('expense', 'Расход')
     ])
     description = StringField("Описание")
     category_id = SelectField("Категория", coerce=int)
@@ -44,7 +44,7 @@ class TransactionForm(FlaskForm):
         'Фото чека (опционально)',
         validators=[
             FileAllowed(['jpg', 'jpeg', 'png', 'gif'], 'Только изображения!'),
-            FileSize(max_size=5 * 1024 * 1024)  # 5MB
+            FileSize(max_size=5 * 1024 * 1024)
         ]
     )
     submit = SubmitField('Создать')
@@ -68,7 +68,7 @@ class FilterForm(FlaskForm):
         validators=[Optional()]
         )
 
-    transaction_type = RadioField(
+    transaction_type = SelectField(
         "Тип",
         choices=[
             ('all', 'Все'),
@@ -76,7 +76,8 @@ class FilterForm(FlaskForm):
             ('expense', 'Расходы')
         ],
         default='all')
-    period = RadioField(
+
+    period = SelectField(
         "Период",
         choices=[
             ("today", "сегодня"),
@@ -87,6 +88,7 @@ class FilterForm(FlaskForm):
             ("all_time", "за все время")
         ],
         default="today")
+
     apply_filter = SubmitField("Применить")
 
     def __init__(self, *args, **kwargs):
@@ -94,5 +96,4 @@ class FilterForm(FlaskForm):
         from app.models import Category
         categories = Category.query.all()
         self.category_id.choices = [
-            ("", "Все")] + [(c.id, c.name) for c in categories
-                            ]  # type: ignore
+            ("", "Все")] + [(c.id, c.name) for c in categories]  # type: ignore

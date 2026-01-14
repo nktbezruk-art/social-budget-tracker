@@ -1,9 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-
-<h1>Ошибка 404!</h1>
-<p>Проверьте правильность введенного URL</p><br>
-<a href="{{ url_for('transactions.transaction_main') }}">Вернуться к списку транзакций</a>
-
+<div class="text-center py-5">
+    <h1 class="text-danger">404</h1>
+    <h2>Страница не найдена</h2>
+    <p class="lead">Проверьте правильность введенного URL</p>
+    <a href="{{ url_for('transactions.transaction_main') }}" class="btn btn-primary">
+        Вернуться к списку транзакций
+    </a>
+</div>
 {% endblock %}

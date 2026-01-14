@@ -33,12 +33,19 @@ def save_receipt_image(file):
         return None
 
     filename = f"{uuid.uuid4()}.{ext}"
-    upload_folder = "app/static/uploads/transactions"
+
+    # Создаем папки от корня проекта
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    upload_folder = os.path.join(base_dir, "static", "uploads", "transactions")
+
+    # Гарантируем что папки существуют
     os.makedirs(upload_folder, exist_ok=True)
+
     filepath = os.path.join(upload_folder, filename)
 
     try:
         file.save(filepath)
+        logger.info(f"Файл сохранен: {filepath}")
         return filename
     except Exception as e:
         logger.error(f"Ошибка сохранения файла: {str(e)}")
@@ -50,10 +57,15 @@ def delete_receipt_image(filename):
     if not filename:
         return
 
-    filepath = os.path.join("app/static/uploads/transactions", filename)
+    import os
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    filepath = os.path.join(
+        base_dir, "static", "uploads", "transactions", filename)
+
     try:
         if os.path.exists(filepath):
             os.remove(filepath)
+            logger.info(f"Файл удален: {filepath}")
     except Exception as e:
         logger.error(f"Ошибка удаления файла {filename}: {str(e)}")
 

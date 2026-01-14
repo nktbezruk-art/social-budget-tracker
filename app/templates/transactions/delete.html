@@ -1,16 +1,21 @@
 {% extends "base.html" %}
 
 {% block content %}
-
-<h1>Требуется подтверждение</h1>
-<p>Вы уверены что хотите удалить транзакцию?</p>
-
-<form method="post">
-    {{ form.hidden_tag() }}
-
-    {{ form.submit_cancel }}
-    <br>
-    {{ form.submit_delete }}
-
-</form>
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h1 class="mb-4">Требуется подтверждение</h1>
+        <div class="alert alert-warning">
+            Вы уверены, что хотите удалить транзакцию?
+        </div>
+        
+        <form method="post">
+            {{ form.hidden_tag() }}
+            
+            <div class="d-grid gap-2">
+                {{ form.submit_delete(class="btn btn-danger") }}
+                {{ form.submit_cancel(class="btn btn-secondary") }}
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}

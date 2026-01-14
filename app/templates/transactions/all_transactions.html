@@ -6,60 +6,97 @@
 <h3>Расходы: {{ total_expense }}</h3>
 
 {% if filter_description %}
-<div>
+<div class="alert alert-info">
     <strong>Активные фильтры:</strong> {{ filter_description }}
 </div>
 {% endif %}
 
-<details>
-    <summary>Фильтры</summary>
-    <form method="get" action="">
-        {{ form.hidden_tag() }}
-        
-        <div>
-            {{ form.period.label }}: {{ form.period }}
-        </div>
-        
-        <div>
-            {{ form.category_id.label }}: {{ form.category_id }}
-        </div>
-        
-        <div>
-            {{ form.transaction_type.label }}: {{ form.transaction_type }}
-        </div>
-        
-        {{ form.apply_filter() }}
-        <a href="{{ url_for('transactions.transaction_main') }}">Сбросить</a>
-    </form>
-</details>
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Фильтры</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" action="">
+            {{ form.hidden_tag() }}
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    {{ form.period.label(class="form-label") }}
+                    {{ form.period(class="form-select form-control") }}
+                </div>
+                
+                <div class="col-md-4">
+                    {{ form.category_id.label(class="form-label") }}
+                    {{ form.category_id(class="form-select form-control") }}
+                </div>
+                
+                <div class="col-md-4">
+                    {{ form.transaction_type.label(class="form-label") }}
+                    {{ form.transaction_type(class="form-select form-control") }}
+                </div>
+            </div>
+            
+            <button type="submit" name="apply_filter" class="btn btn-primary">Применить</button>
+            <a href="{{ url_for('transactions.transaction_main') }}" class="btn btn-secondary">Сбросить</a>
+        </form>
+    </div>
+</div>
 
 {% if transactions %}
-
-{% for transaction in transactions %}
-<div>
-    <p>Категория: {{ transaction.category.name }}</p>
-    <p>Сумма: <a href="{{ url_for('transactions.view_transaction', transaction_id=transaction.id) }}">{{ transaction.amount }}</a></p>
-    <p>Описание: {{ transaction.description }}</p>
-    <small>{{ 'Доход' if transaction.type == 'income' else 'Расход' }}</small>
-    <small>Дата: {{ transaction.date.strftime('%d.%m.%Y') }}</small>
-
-    {% if transaction.image_filename %}
-    <div>
-        <img src="{{ url_for('static', filename='uploads/transactions/' + transaction.image_filename) }}" 
-             alt="Чек к транзакции" 
-             style="max-width: 100px; max-height: 100px;">
-        <br>
-        <small>Прикреплен чек</small>
+<div class="list-group">
+    {% for transaction in transactions %}
+    <div class="list-group-item">
+        <div class="d-flex w-100 justify-content-between">
+            <h5 class="mb-1">{{ transaction.category.name }}</h5>
+            <small>{{ transaction.date.strftime('%d.%m.%Y') }}</small>
+        </div>
+        
+        <p class="mb-1">
+            <a href="{{ url_for('transactions.view_transaction', transaction_id=transaction.id) }}">
+                {{ transaction.amount }}
+            </a>
+            - {{ transaction.description }}
+        </p>
+        
+        <small class="badge {% if transaction.type == 'income' %}bg-success{% else %}bg-danger{% endif %}">
+            {{ 'Доход' if transaction.type == 'income' else 'Расход' }}
+        </small>
+        
+        {% if transaction.image_filename %}
+        <div class="mt-2">
+            <img src="{{ url_for('static', filename='uploads/transactions/' + transaction.image_filename) }}" 
+                 alt="Чек" 
+                 class="img-thumbnail" 
+                 style="max-width: 100px; max-height: 100px;">
+            <small class="text-muted">Прикреплен чек</small>
+        </div>
+        {% endif %}
+        
+        <div class="mt-2">
+            <a href="{{ url_for('transactions.edit_transaction', transaction_id=transaction.id) }}" class="btn btn-sm btn-outline-primary">Изменить</a>
+            <a href="{{ url_for('transactions.delete_transaction', transaction_id=transaction.id) }}" class="btn btn-sm btn-outline-danger">Удалить</a>
+        </div>
     </div>
-    {% endif %}
-    
-    <a href="{{ url_for('transactions.edit_transaction', transaction_id=transaction.id) }}">Изменить</a>
-    <a href="{{ url_for('transactions.delete_transaction', transaction_id=transaction.id) }}">Удалить</a>
+    {% endfor %}
 </div>
-<hr>
-{% endfor %}
 {% else %}
-<h1>Нет ни одной транзакции!</h1>
-<a href="{{ url_for('transactions.add_transaction') }}">Создать</a>
+<div class="text-center py-5">
+    <h2>Нет транзакций</h2>
+    <a href="{{ url_for('transactions.add_transaction') }}" class="btn btn-primary">Создать первую транзакцию</a>
+</div>
 {% endif %}
+
+<style>
+.form-select {
+    padding: 8px 12px;
+    border-radius: 5px;
+    border: 1px solid #ced4da;
+}
+
+.form-select option {
+    padding: 8px;
+    background: white;
+    border: none;
+}
+</style>
 {% endblock %}
